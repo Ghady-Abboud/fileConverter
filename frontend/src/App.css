@@ -108,10 +108,40 @@ main {
   color: #718096;
 }
 
+.files-list {
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.files-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.files-list::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
+.files-list::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+.files-list::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
 .file-info {
   display: flex;
   align-items: center;
   gap: 1rem;
+  padding: 0.75rem;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
 }
 
 .file-icon {
@@ -209,13 +239,6 @@ main {
 
 .convert-button:active {
   transform: translateY(0);
-}
-
-footer {
-  margin-top: 2rem;
-  text-align: center;
-  color: #6b7280;
-  font-size: 0.875rem;
 }
 
 @media (max-width: 640px) {
