@@ -1,10 +1,20 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pdf2docx import Converter
 from PIL import Image
 import subprocess
 import os
 
 app = FastAPI()
+
+origins = ["*"]
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins=origins,
+  allow_credentials=True,
+  allow_methods=["*"],
+  allow_headers=["*"],
+)
 
 def convert_word_file(input_path: str, output_format: str) -> int:
   """
@@ -69,8 +79,33 @@ def convert_image_file(input_path: str, output_format: str) -> int:
     raise ValueError(f"Error converting image: {e}")
   return 0
 
+@app.get("/formats/{extension}")
+def get_available_formats(extension: str):
+  """
+  Get available output formats for a given file extension.
+
+  Args:
+    extension: The input file extension (e.g., 'pdf', 'jpg', 'png')
+
+  Returns:
+    JSON with available output formats
+  """
+  ext = extension.lower()
+
+  document_formats = ['pdf', 'doc', 'docx', 'odt']
+  if ext in document_formats:
+    if ext == 'pdf':
+      return {"formats": ['docx']}
+    else:
+      return {"formats": ['pdf']}
+
+  image_formats = ['jpeg', 'jpg', 'png', 'bmp', 'gif', 'tiff']
+  if ext in image_formats:
+    available = [f for f in image_formats if f != ext]
+    return {"formats": available}
+
+  return {"formats": []}
+
 @app.get("/convert")
 def convert():
-  # result = convert_word_file("example.pdf", "docx")
-  result = convert_image_file("example.png", "jpeg")
-  return {"message": "Converted", "result": result}
+  return {"message": "Converted", "result": None}
