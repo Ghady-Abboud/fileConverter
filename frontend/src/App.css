@@ -166,6 +166,66 @@ main {
 .file-size {
   font-size: 0.875rem;
   color: #718096;
+  margin-bottom: 0.75rem;
+}
+
+.format-selection {
+  margin-top: 0.75rem;
+}
+
+.format-label {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.format-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.format-chip {
+  padding: 0.375rem 0.875rem;
+  border-radius: 6px;
+  border: 1.5px solid #e5e7eb;
+  background: white;
+  color: #6b7280;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  letter-spacing: 0.02em;
+}
+
+.format-chip:hover {
+  border-color: #1a1a1a;
+  color: #1a1a1a;
+  background: #fafafa;
+  transform: translateY(-1px);
+}
+
+.format-chip.selected {
+  background: #1a1a1a;
+  color: white;
+  border-color: #1a1a1a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.format-chip.selected:hover {
+  background: #2d2d2d;
+  border-color: #2d2d2d;
+}
+
+.unsupported-format {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: #dc2626;
+  font-weight: 500;
 }
 
 .remove-button {

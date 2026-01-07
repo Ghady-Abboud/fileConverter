@@ -3,12 +3,43 @@ import './App.css'
 
 function App() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-  const [outputFormat, setOutputFormat] = useState<string>('')
+  const [fileFormats, setFileFormats] = useState<Record<number, string>>({})
+  const [availableFormats, setAvailableFormats] = useState<Record<number, string[]>>({})
   const [isDragging, setIsDragging] = useState(false)
+
+  const getFileExtension = (filename: string) => {
+    return filename.split('.').pop()?.toLowerCase() || ''
+  }
+
+  const fetchAvailableFormats = async (extension: string): Promise<string[]> => {
+    try {
+      const response = await fetch(`http://localhost:8000/formats/${extension}`)
+      const data = await response.json()
+      return data.formats || []
+    } catch (error) {
+      console.error('Error fetching formats:', error)
+      return []
+    }
+  }
+
+  const processFiles = async (files: File[]) => {
+    setSelectedFiles(files)
+
+    const formatsMap: Record<number, string[]> = {}
+
+    for (let i = 0; i < files.length; i++) {
+      const ext = getFileExtension(files[i].name)
+      const formats = await fetchAvailableFormats(ext)
+      formatsMap[i] = formats
+    }
+
+    setAvailableFormats(formatsMap)
+    setFileFormats({})
+  }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setSelectedFiles(Array.from(e.target.files))
+      processFiles(Array.from(e.target.files))
     }
   }
 
@@ -25,41 +56,48 @@ function App() {
     e.preventDefault()
     setIsDragging(false)
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setSelectedFiles(Array.from(e.dataTransfer.files))
+      processFiles(Array.from(e.dataTransfer.files))
     }
   }
 
   const handleConvert = async () => {
-    if (selectedFiles.length === 0 || !outputFormat) return
+    const filesToConvert = selectedFiles
+      .map((file, index) => ({
+        file,
+        outputFormat: fileFormats[index]
+      }))
+      .filter(item => item.outputFormat)
+
+    if (filesToConvert.length === 0) return
+
     // TODO: Add conversion logic here
-    console.log('Converting files:', selectedFiles.map(f => f.name), 'to', outputFormat)
+    console.log('Converting files:', filesToConvert.map(item => ({
+      name: item.file.name,
+      to: item.outputFormat
+    })))
   }
 
   const removeFile = (index: number) => {
-    setSelectedFiles(selectedFiles.filter((_, i) => i !== index))
+    const newFiles = selectedFiles.filter((_, i) => i !== index)
+    setSelectedFiles(newFiles)
+
+    const newFormats = { ...fileFormats }
+    delete newFormats[index]
+    setFileFormats(newFormats)
+
+    const newAvailableFormats = { ...availableFormats }
+    delete newAvailableFormats[index]
+    setAvailableFormats(newAvailableFormats)
   }
 
-  const getFileExtension = (filename: string) => {
-    return filename.split('.').pop()?.toLowerCase() || ''
+  const updateFileFormat = (index: number, format: string) => {
+    setFileFormats({
+      ...fileFormats,
+      [index]: format
+    })
   }
 
-  const getAvailableFormats = () => {
-    if (selectedFiles.length === 0) return []
-    const ext = getFileExtension(selectedFiles[0].name)
-
-    // Document formats
-    if (['doc', 'docx', 'odt'].includes(ext)) {
-      return ['pdf']
-    }
-    if (ext === 'pdf') {
-      return ['docx']
-    }
-    // Image formats
-    if (['jpeg', 'jpg', 'png', 'bmp', 'gif', 'tiff'].includes(ext)) {
-      return ['jpeg', 'png', 'bmp', 'gif', 'tiff'].filter(f => f !== ext)
-    }
-    return []
-  }
+  const hasSelectedFormats = Object.keys(fileFormats).some(key => fileFormats[parseInt(key)])
 
   return (
     <div className="container">
@@ -92,9 +130,6 @@ function App() {
                 onChange={handleFileSelect}
                 style={{ display: 'none' }}
               />
-              <p className="supported-formats">
-                Supported: PDF, DOC, DOCX, ODT, JPG, PNG, BMP, GIF, TIFF
-              </p>
             </>
           ) : (
             <div className="files-list">
@@ -106,6 +141,25 @@ function App() {
                   <div className="file-details">
                     <p className="file-name">{file.name}</p>
                     <p className="file-size">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    {availableFormats[index] && availableFormats[index].length > 0 && (
+                      <div className="format-selection">
+                        <span className="format-label">Convert to:</span>
+                        <div className="format-options">
+                          {availableFormats[index].map(format => (
+                            <button
+                              key={format}
+                              className={`format-chip ${fileFormats[index] === format ? 'selected' : ''}`}
+                              onClick={() => updateFileFormat(index, format)}
+                            >
+                              {format.toUpperCase()}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {availableFormats[index] && availableFormats[index].length === 0 && (
+                      <p className="unsupported-format">Unsupported file type</p>
+                    )}
                   </div>
                   <button
                     className="remove-button"
@@ -119,25 +173,9 @@ function App() {
           )}
         </div>
 
-        {selectedFiles.length > 0 && getAvailableFormats().length > 0 && (
-          <div className="format-selector">
-            <label htmlFor="format">Convert to:</label>
-            <select
-              id="format"
-              value={outputFormat}
-              onChange={(e) => setOutputFormat(e.target.value)}
-            >
-              <option value="">Select format...</option>
-              {getAvailableFormats().map(format => (
-                <option key={format} value={format}>{format.toUpperCase()}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {selectedFiles.length > 0 && outputFormat && (
+        {hasSelectedFormats && (
           <button className="convert-button" onClick={handleConvert}>
-            Convert {selectedFiles.length} {selectedFiles.length === 1 ? 'File' : 'Files'}
+            Convert {Object.keys(fileFormats).filter(key => fileFormats[parseInt(key)]).length} {Object.keys(fileFormats).filter(key => fileFormats[parseInt(key)]).length === 1 ? 'File' : 'Files'}
           </button>
         )}
       </main>
