@@ -70,11 +70,23 @@ function App() {
 
     if (filesToConvert.length === 0) return
 
-    // TODO: Add conversion logic here
-    console.log('Converting files:', filesToConvert.map(item => ({
-      name: item.file.name,
-      to: item.outputFormat
-    })))
+    const textFormats = ['txt', 'pdf', 'docx', 'odt']
+    for (const item of filesToConvert) {
+      if (textFormats.includes(item.outputFormat)) {
+        const formData = new FormData()
+        formData.append('file', item.file)
+        formData.append('output_format', item.outputFormat)
+        const response = await fetch('http://localhost:8000/convert_word_file', {
+          method: 'POST',
+          body: formData
+        })
+        if (response.ok) {
+          console.log(`Successfully converted ${item.file.name} to ${item.outputFormat}`)
+        } else {
+          console.error(`Failed to convert ${item.file.name}`)
+        }
+      }
+    }
   }
 
   const removeFile = (index: number) => {

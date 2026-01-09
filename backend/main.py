@@ -1,9 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pdf2docx import Converter
 from PIL import Image
 import subprocess
 import os
+import magic
 
 app = FastAPI()
 
@@ -16,28 +17,46 @@ app.add_middleware(
   allow_headers=["*"],
 )
 
-def convert_word_file(input_path: str, output_format: str) -> int:
+supportedFileTypes = {
+  'image/png': 'png',
+  'image/jpeg': 'jpeg',
+  'image/bmp': 'bmp',
+  'image/gif': 'gif',
+  'image/tiff': 'tiff',
+  'application/pdf': 'pdf',
+  'application/msword': 'doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.oasis.opendocument.text': 'odt'
+}
+
+@app.post("/convert_word_file")
+async def convert_word_file(file: UploadFile, output_format: str) -> int:
   """
   Convert a word file to the specified output format.
   
   Args:
-    input_path: Path to the input file 
+    file: UploadFile object containing the file to convert
     output_format: Desired output format
-  
+
   Returns:
-    Int status code
   """
+  if not file:
+    raise ValueError("No File Provided")
+
+  contents = await file.read()
+  filename = file.filename
+
   output_format = output_format.lower()
-  input_extension = input_path.split('.')[-1].lower()
+  fileType = magic.from_buffer(buffer=contents, mime=True)
   supportedExtensions = ['pdf', 'doc', 'docx', 'odt']
 
-  if input_extension not in supportedExtensions:
-    raise ValueError(f"Input format {input_extension} is not supported.")
+  if fileType not in supportedExtensions:
+    raise ValueError(f"Input format {fileType} is not supported.")
 
   try:
-    if input_extension == 'pdf' and output_format == 'docx':
-      cv = Converter(input_path)
-      filename = os.path.basename(input_path).replace('.pdf', '.docx')
+    if fileType == 'application/pdf' and output_format == 'docx':
+      cv = Converter(file)
+      filename = os.path.basename(filename).replace('.pdf', '.docx')
       output_path = os.path.join('/tmp', filename)
       cv.convert(output_path)
       cv.close()
@@ -48,7 +67,7 @@ def convert_word_file(input_path: str, output_format: str) -> int:
       '--convert-to',
       output_format,
       '--outdir', '/tmp',
-      input_path
+      filename
     ]
     subprocess.run(command, check=True)
     return 0
@@ -105,7 +124,3 @@ def get_available_formats(extension: str):
     return {"formats": available}
 
   return {"formats": []}
-
-@app.get("/convert")
-def convert():
-  return {"message": "Converted", "result": None}
