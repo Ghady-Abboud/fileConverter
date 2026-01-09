@@ -3,7 +3,7 @@ FROM python:3.11-slim
 
 # Install LibreOffice (only the Writer component to keep it smaller)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+    apt-get install -y --no-install-recommends libmagic1 \
     libreoffice-writer \
     libreoffice-core \
     && rm -rf /var/lib/apt/lists/*
