@@ -1,14 +1,17 @@
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pdf2docx import Converter
+from fastapi.responses import FileResponse
 from PIL import Image
 import subprocess
 import os
 import magic
+import tempfile
+from pathlib import Path
 
 app = FastAPI()
 
-origins = ["*"]
+origins = ["http://localhost", "http://localhost:5173"]
 app.add_middleware(
   CORSMiddleware,
   allow_origins=origins,
@@ -18,19 +21,19 @@ app.add_middleware(
 )
 
 supportedFileTypes = {
-  'image/png': 'png',
-  'image/jpeg': 'jpeg',
-  'image/bmp': 'bmp',
-  'image/gif': 'gif',
-  'image/tiff': 'tiff',
-  'application/pdf': 'pdf',
-  'application/msword': 'doc',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-  'application/vnd.oasis.opendocument.text': 'odt'
+  'png': 'image/png',
+  'jpeg': 'image/jpeg',
+  'bmp': 'image/bmp',
+  'gif': 'image/gif',
+  'tiff': 'image/tiff',
+  'pdf': 'application/pdf',
+  'doc': 'application/msword',
+  'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'odt': 'application/vnd.oasis.opendocument.text'
 }
 
 @app.post("/convert_word_file")
-async def convert_word_file(file: UploadFile, output_format: str) -> int:
+async def convert_word_file(file: UploadFile = File(...), output_format: str = Form(...)) -> int:
   """
   Convert a word file to the specified output format.
   
@@ -41,38 +44,86 @@ async def convert_word_file(file: UploadFile, output_format: str) -> int:
   Returns:
   """
   if not file:
-    raise ValueError("No File Provided")
+    raise HTTPException(status_code=400, detail="No File Uploaded.")
 
+  print("Reading file...")
   contents = await file.read()
   filename = file.filename
+  print(f"File read: {filename}, size: {len(contents)} bytes")
+
+  input_ext = Path(filename).suffix.lower().lstrip('.')
+  if input_ext not in supportedFileTypes:
+    raise HTTPException(status_code=400, detail=f"Input file extension .{input_ext} is not supported.")
+
+  detectedMime = magic.from_buffer(buffer=contents, mime=True)
+  expectedMime = supportedFileTypes[input_ext]
+  print(f"Detected file type: {detectedMime}, Expected file type: {expectedMime}")
+
+  if detectedMime != expectedMime:
+    # Special case for doc and docx
+    if input_ext == "docx" and detectedMime in ['application/zip', 'application/json']:
+      pass
+    else:
+      raise HTTPException(status_code=400, detail=f"File content type {detectedMime} does not match expected type {expectedMime} for extension .{input_ext}.")
 
   output_format = output_format.lower()
-  fileType = magic.from_buffer(buffer=contents, mime=True)
-  supportedExtensions = ['pdf', 'doc', 'docx', 'odt']
+  supported_output_formats = ['pdf', 'doc', 'docx', 'odt']
+  if output_format not in supported_output_formats:
+    raise HTTPException(status_code=400, detail=f"Output format {output_format} is not supported.")
 
-  if fileType not in supportedExtensions:
-    raise ValueError(f"Input format {fileType} is not supported.")
+  fileType = supportedFileTypes[input_ext]
+  print(f"Input file extension: {input_ext}, MIME type: {fileType}")
+  if fileType not in supportedFileTypes.values():
+    raise HTTPException(status_code=400, detail=f"Input format {fileType} is not supported.")
+  
+  print("File type is supported. Proceeding with conversion...")
+  temp_dir = tempfile.mkdtemp()
 
   try:
-    if fileType == 'application/pdf' and output_format == 'docx':
-      cv = Converter(file)
-      filename = os.path.basename(filename).replace('.pdf', '.docx')
-      output_path = os.path.join('/tmp', filename)
+    import shutil
+    base_name = Path(filename).stem
+    input_path = os.path.join(temp_dir, f"{base_name}.{input_ext}")
+    print(f"Saving uploaded file to temporary path: {input_path}...")
+    with open(input_path, 'wb') as f:
+      f.write(contents)
+
+    print(f"Creating output file path...")
+    output_filename = f"{base_name}.{output_format}"
+    output_path = os.path.join(temp_dir, output_filename)
+    print(f"Output file will be saved to: {output_path}")
+
+    if fileType == "application/pdf" and output_format == "docx":
+      cv = Converter(input_path)
       cv.convert(output_path)
       cv.close()
-      return 0
-    command = [
-      'libreoffice',
-      '--headless',
-      '--convert-to',
-      output_format,
-      '--outdir', '/tmp',
-      filename
-    ]
-    subprocess.run(command, check=True)
-    return 0
+    else:
+      print("Running LibreOffice conversion...")
+      command = [
+        'libreoffice',
+        '--headless',
+        '--convert-to',
+        output_format,
+        '--outdir', temp_dir,
+        input_path
+      ]
+      subprocess.run(command, check=True)
+      print(f"LibreOffice conversion completed.")
+      print(f"Contents of temp directory: {os.listdir(temp_dir)}")
+      print(f"Looking for output file at: {output_path}")
+    if not os.path.exists(output_path):
+      raise HTTPException(status_code=500, detail="Conversion failed.")
+    print("Conversion successful. Preparing file for download...")
+    return FileResponse(
+      path=output_path,
+      filename=output_filename,
+      media_type='application/octet-stream'
+    )
+  except subprocess.CalledProcessError as e:
+    shutil.rmtree(temp_dir, ignore_errors=True)
+    raise HTTPException(status_code=500, detail=f"Error during conversion: {e}")
   except Exception as e:
-    raise ValueError(f"Error converting file: {e}")
+    shutil.rmtree(temp_dir, ignore_errors=True)
+    raise HTTPException(status_code=500, detail=f"Error converting file: {e}")
 
 def convert_image_file(input_path: str, output_format: str) -> int:
   """
