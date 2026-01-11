@@ -33,7 +33,7 @@ supportedFileTypes = {
 }
 
 @app.post("/convert_word_file")
-async def convert_word_file(file: UploadFile = File(...), output_format: str = Form(...)) -> int:
+async def convert_word_file(file: UploadFile = File(...), output_format: str = Form(...)) -> FileResponse:
   """
   Convert a word file to the specified output format.
   
@@ -42,6 +42,7 @@ async def convert_word_file(file: UploadFile = File(...), output_format: str = F
     output_format: Desired output format
 
   Returns:
+    FileResponse with the converted file
   """
   if not file:
     raise HTTPException(status_code=400, detail="No File Uploaded.")
@@ -125,26 +126,35 @@ async def convert_word_file(file: UploadFile = File(...), output_format: str = F
     shutil.rmtree(temp_dir, ignore_errors=True)
     raise HTTPException(status_code=500, detail=f"Error converting file: {e}")
 
-def convert_image_file(input_path: str, output_format: str) -> int:
+@app.post("/convert_image_file")
+def convert_image_file(file: UploadFile = File(...), output_format: str = Form(...)) -> FileResponse:
   """
   Convert an image file to the specified output format.
   
   Args:
-    input_path: Path to the input file 
+    file: The uploaded image file
     output_format: Desired output format
   
   Returns:
-    Int status code
+    FileResponse with the converted image
   """
 
   try:
     supporterdExtensions = ['jpeg', 'png', 'bmp', 'gif', 'tiff']
     if output_format.lower() not in supporterdExtensions:
       raise ValueError(f"Output format {output_format} is not supported.")
-    with Image.open(input_path) as img:
+    with Image.open(file.file) as img:
       if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
-      img.save(f"/tmp/{os.path.basename(input_path).split('.')[0]}.{output_format}")
+      temp_dir = tempfile.mkdtemp()
+      output_filename = f"{Path(file.filename).stem}.{output_format}"
+      output_path = os.path.join(temp_dir, output_filename)
+      img.save(output_path, format=output_format.upper())
+      return FileResponse(
+        path=output_path,
+        filename=output_filename,
+        media_type='application/octet-stream'
+      )
   except Exception as e:
     raise ValueError(f"Error converting image: {e}")
   return 0
