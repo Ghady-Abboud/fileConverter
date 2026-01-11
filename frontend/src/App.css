@@ -301,6 +301,68 @@ main {
   transform: translateY(0);
 }
 
+.converting-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: #fef3c7;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #92400e;
+  font-weight: 500;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fbbf24;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.download-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.625rem 1rem;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  justify-content: center;
+}
+
+.download-button:hover {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+.download-button:active {
+  transform: translateY(0);
+}
+
+.download-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
 @media (max-width: 640px) {
   header h1 {
     font-size: 2rem;

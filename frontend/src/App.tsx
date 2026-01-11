@@ -6,6 +6,8 @@ function App() {
   const [fileFormats, setFileFormats] = useState<Record<number, string>>({})
   const [availableFormats, setAvailableFormats] = useState<Record<number, string[]>>({})
   const [isDragging, setIsDragging] = useState(false)
+  const [convertedFiles, setConvertedFiles] = useState<Record<number, { blob: Blob; filename: string }>>({})
+  const [isConverting, setIsConverting] = useState<Record<number, boolean>>({})
 
   const getFileExtension = (filename: string) => {
     return filename.split('.').pop()?.toLowerCase() || ''
@@ -64,6 +66,7 @@ function App() {
     const filesToConvert = selectedFiles
       .map((file, index) => ({
         file,
+        index,
         outputFormat: fileFormats[index]
       }))
       .filter(item => item.outputFormat)
@@ -72,18 +75,40 @@ function App() {
 
     const textFormats = ['txt', 'pdf', 'docx', 'odt']
     for (const item of filesToConvert) {
+      const fileIndex = item.index
+      setIsConverting(prev => ({
+        ...prev,
+        [fileIndex] : true,
+      }))
       if (textFormats.includes(item.outputFormat)) {
-        const formData = new FormData()
-        formData.append('file', item.file)
-        formData.append('output_format', item.outputFormat)
-        const response = await fetch('http://localhost:8000/convert_word_file', {
-          method: 'POST',
-          body: formData
-        })
-        if (response.ok) {
-          console.log(`Successfully converted ${item.file.name} to ${item.outputFormat}`)
-        } else {
-          console.error(`Failed to convert ${item.file.name}`)
+        try {
+          const formData = new FormData()
+          formData.append('file', item.file)
+          formData.append('output_format', item.outputFormat)
+          const response = await fetch('http://localhost:8000/convert_word_file', {
+            method: 'POST',
+            body: formData
+          })
+          if (response.ok) {
+            const blob = await response.blob()
+            const filename = item.file.name.replace(/\.[^/.]+$/, '') + '.' + item.outputFormat
+            setConvertedFiles(prev => ({
+              ...prev,
+              [fileIndex]: { blob, filename }
+            }))
+            setIsConverting(prev => ({
+              ...prev,
+              [fileIndex]: false
+            }))
+            console.log(`Successfully converted ${item.file.name} to ${item.outputFormat}`)
+          }
+        } catch (error) {
+          console.error(`Failed to convert ${item.file.name}`, error)
+        } finally {
+          setIsConverting(prev => ({
+            ...prev,
+            [fileIndex]: false
+          }))
         }
       }
     }
@@ -107,6 +132,27 @@ function App() {
       ...fileFormats,
       [index]: format
     })
+  }
+
+  const handleDownload = (index: number) => {
+    const convertedFile = convertedFiles[index]
+    if (!convertedFile) return
+
+    const blobURL = URL.createObjectURL(convertedFile.blob)
+    const link = document.createElement('a')
+
+    link.href = blobURL
+    link.download = convertedFile.filename
+
+    document.body.appendChild(link)
+
+    link.dispatchEvent(
+    new MouseEvent('click', { 
+      bubbles: true, 
+      cancelable: true, 
+      view: window 
+    }))
+    document.body.removeChild(link)
   }
 
   const hasSelectedFormats = Object.keys(fileFormats).some(key => fileFormats[parseInt(key)])
@@ -153,7 +199,7 @@ function App() {
                   <div className="file-details">
                     <p className="file-name">{file.name}</p>
                     <p className="file-size">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                    {availableFormats[index] && availableFormats[index].length > 0 && (
+                    {availableFormats[index] && availableFormats[index].length > 0 && !isConverting[index] && !convertedFiles[index] && (
                       <div className="format-selection">
                         <span className="format-label">Convert to:</span>
                         <div className="format-options">
@@ -171,6 +217,20 @@ function App() {
                     )}
                     {availableFormats[index] && availableFormats[index].length === 0 && (
                       <p className="unsupported-format">Unsupported file type</p>
+                    )}
+                    {isConverting[index] && (
+                      <div className="converting-status">
+                        <span className="spinner"></span>
+                        <span>Converting...</span>
+                      </div>
+                    )}
+                    {convertedFiles[index] && !isConverting[index] && (
+                      <button className="download-button" onClick={() => handleDownload(index)}>
+                        <svg className="download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download {convertedFiles[index].filename}
+                      </button>
                     )}
                   </div>
                   <button
