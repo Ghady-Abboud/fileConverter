@@ -73,43 +73,61 @@ function App() {
 
     if (filesToConvert.length === 0) return
 
-    const textFormats = ['txt', 'pdf', 'docx', 'odt']
+    const documentFormats = ['pdf', 'doc', 'docx', 'odt']
+    const imageFormats = ['jpeg', 'png', 'bmp', 'gif', 'tiff']
+
     for (const item of filesToConvert) {
       const fileIndex = item.index
       setIsConverting(prev => ({
         ...prev,
         [fileIndex] : true,
       }))
-      if (textFormats.includes(item.outputFormat)) {
-        try {
-          const formData = new FormData()
-          formData.append('file', item.file)
-          formData.append('output_format', item.outputFormat)
-          const response = await fetch('http://localhost:8000/convert_word_file', {
-            method: 'POST',
-            body: formData
-          })
-          if (response.ok) {
-            const blob = await response.blob()
-            const filename = item.file.name.replace(/\.[^/.]+$/, '') + '.' + item.outputFormat
-            setConvertedFiles(prev => ({
-              ...prev,
-              [fileIndex]: { blob, filename }
-            }))
-            setIsConverting(prev => ({
-              ...prev,
-              [fileIndex]: false
-            }))
-            console.log(`Successfully converted ${item.file.name} to ${item.outputFormat}`)
-          }
-        } catch (error) {
-          console.error(`Failed to convert ${item.file.name}`, error)
-        } finally {
+
+      const isDocumentConversion = documentFormats.includes(item.outputFormat)
+      const isImageConversion = imageFormats.includes(item.outputFormat)
+      const endpoint = isDocumentConversion
+        ? 'http://localhost:8000/convert_word_file'
+        : isImageConversion
+        ? 'http://localhost:8000/convert_image_file'
+        : null
+
+      if (!endpoint) {
+        console.error(`Unsupported output format: ${item.outputFormat}`)
+        setIsConverting(prev => ({
+          ...prev,
+          [fileIndex]: false
+        }))
+        continue
+      }
+
+      try {
+        const formData = new FormData()
+        formData.append('file', item.file)
+        formData.append('output_format', item.outputFormat)
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          body: formData
+        })
+        if (response.ok) {
+          const blob = await response.blob()
+          const filename = item.file.name.replace(/\.[^/.]+$/, '') + '.' + item.outputFormat
+          setConvertedFiles(prev => ({
+            ...prev,
+            [fileIndex]: { blob, filename }
+          }))
           setIsConverting(prev => ({
             ...prev,
             [fileIndex]: false
           }))
+          console.log(`Successfully converted ${item.file.name} to ${item.outputFormat}`)
         }
+      } catch (error) {
+        console.error(`Failed to convert ${item.file.name}`, error)
+      } finally {
+        setIsConverting(prev => ({
+          ...prev,
+          [fileIndex]: false
+        }))
       }
     }
   }
