@@ -166,7 +166,7 @@ def get_available_formats(extension: str):
   Get available output formats for a given file extension.
 
   Args:
-    extension: The input file extension (e.g., 'pdf', 'jpg', 'png')
+    extension: The input file extension (e.g., 'pdf', 'png')
 
   Returns:
     JSON with available output formats
@@ -180,7 +180,7 @@ def get_available_formats(extension: str):
     else:
       return {"formats": ['pdf']}
 
-  image_formats = ['jpeg', 'jpg', 'png', 'bmp', 'gif', 'tiff']
+  image_formats = ['jpeg', 'png', 'bmp', 'gif', 'tiff']
   if ext in image_formats:
     available = [f for f in image_formats if f != ext]
     return {"formats": available}
