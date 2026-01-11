@@ -141,7 +141,8 @@ def convert_image_file(file: UploadFile = File(...), output_format: str = Form(.
 
   try:
     supporterdExtensions = ['jpeg', 'png', 'bmp', 'gif', 'tiff']
-    if output_format.lower() not in supporterdExtensions:
+    output_format = output_format.lower()
+    if output_format not in supporterdExtensions:
       raise ValueError(f"Output format {output_format} is not supported.")
     with Image.open(file.file) as img:
       if img.mode in ("RGBA", "P"):
@@ -149,7 +150,7 @@ def convert_image_file(file: UploadFile = File(...), output_format: str = Form(.
       temp_dir = tempfile.mkdtemp()
       output_filename = f"{Path(file.filename).stem}.{output_format}"
       output_path = os.path.join(temp_dir, output_filename)
-      img.save(output_path, format=output_format.upper())
+      img.save(output_path, format=output_format)
       return FileResponse(
         path=output_path,
         filename=output_filename,
