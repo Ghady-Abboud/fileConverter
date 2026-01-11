@@ -125,6 +125,10 @@ function App() {
     const newAvailableFormats = { ...availableFormats }
     delete newAvailableFormats[index]
     setAvailableFormats(newAvailableFormats)
+
+    const newConvertedFiles = { ...convertedFiles }
+    delete newConvertedFiles[index]
+    setConvertedFiles(newConvertedFiles)
   }
 
   const updateFileFormat = (index: number, format: string) => {
