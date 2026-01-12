@@ -2,6 +2,10 @@ import { useState } from 'react'
 import './App.css'
 
 function App() {
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+  if (!API_BASE_URL) {
+    throw new Error('VITE_API_BASE_URL is not defined in environment variables')
+  }
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [fileFormats, setFileFormats] = useState<Record<number, string>>({})
   const [availableFormats, setAvailableFormats] = useState<Record<number, string[]>>({})
@@ -15,7 +19,7 @@ function App() {
 
   const fetchAvailableFormats = async (extension: string): Promise<string[]> => {
     try {
-      const response = await fetch(`http://localhost:8000/formats/${extension}`)
+      const response = await fetch(`${API_BASE_URL}/formats/${extension}`)
       const data = await response.json()
       return data.formats || []
     } catch (error) {
@@ -86,9 +90,9 @@ function App() {
       const isDocumentConversion = documentFormats.includes(item.outputFormat)
       const isImageConversion = imageFormats.includes(item.outputFormat)
       const endpoint = isDocumentConversion
-        ? 'http://localhost:8000/convert_word_file'
+        ? `${API_BASE_URL}/convert_word_file`
         : isImageConversion
-        ? 'http://localhost:8000/convert_image_file'
+        ? `${API_BASE_URL}/convert_image_file`
         : null
 
       if (!endpoint) {
