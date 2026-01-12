@@ -8,13 +8,17 @@ import os
 import magic
 import tempfile
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
 
-origins = ["http://localhost:5173"]
+allowed_origins = os.getenv("ALLOWED_ORIGINS")
+
 app.add_middleware(
   CORSMiddleware,
-  allow_origins=origins,
+  allow_origins=allowed_origins,
   allow_credentials=True,
   allow_methods=["*"],
   allow_headers=["*"],
@@ -186,3 +190,13 @@ def get_available_formats(extension: str):
     return {"formats": available}
 
   return {"formats": []}
+
+@app.get("/health")
+def health_check():
+  """
+  Health check endpoint to verify the service is running.
+
+  Returns:
+    JSON indicating the service status
+  """
+  return {"status": "ok"}
