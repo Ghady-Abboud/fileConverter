@@ -191,6 +191,7 @@ def get_available_formats(extension: str):
 
   return {"formats": []}
 
+@app.get("/health")
 @app.head("/health")
 def health_check():
   """
