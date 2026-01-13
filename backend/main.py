@@ -191,7 +191,7 @@ def get_available_formats(extension: str):
 
   return {"formats": []}
 
-@app.get("/health")
+@app.head("/health")
 def health_check():
   """
   Health check endpoint to verify the service is running.
